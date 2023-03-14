@@ -1,0 +1,981 @@
+---
+title: "CENG 3516 STATISTICAL COMPUTING FINAL PROJECT"
+author: "İrem Uslu-Hatice Özgül Bilici"
+output: html_document
+
+---
+
+<h1>Description of Data </h1>
+It is a data set of customer databases of an e-commerce company selling international electronic products.This data set contains 10999 observations and 12 variables.My aim in this project was to observe the relationships between the company's products and its customers.
+
+<p>https://www.kaggle.com/datasets/prachi13/customer-analytics<p>
+
+
+
+<html>
+<head>
+<style>
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+</style>
+</head>
+<body>
+
+<h2>Dataset Information</h2>
+
+<table>
+   <tr>
+    <th>Column</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td>ID</td>
+    <td>ID Number of Customers.</td>
+  </tr>
+  <tr>
+    <td>Warehouse Block</td>
+    <td>The Company have big Warehouse which is divided in to block such as A,B,C,D,F. </td>
+
+  </tr>
+  <tr>
+    <td>Mode of shipment</td>
+    <td>The Company Ships the products in multiple way such as Ship, Flight and Road.</td>
+  </tr>
+  
+  <tr>
+    <td>Customer care calls</td>
+    <td>The number of calls made from enquiry for enquiry of the shipment.</td>
+  </tr>
+  <tr>
+    <td>Customer rating</td>
+    <td>The company has rated from every customer. 1 is the lowest (Worst), 5 is the highest (Best).</td>
+  </tr>
+  <tr>
+    <td>Cost of the product</td>
+    <td>Cost of the Product in US Dollars.</td>
+  </tr>
+    <tr>
+    <td>Prior purchases</td>
+    <td>The Number of Prior Purchase.</td>
+  </tr>
+    <tr>
+    <td>Product importance</td>
+    <td>Total number of applications</td>
+  </tr>
+    <tr>
+    <td>Gender</td>
+    <td>Total number of applications</td>
+  </tr>
+    <tr>
+    <td>Discount offered</td>
+    <td>Discount offered on that specific product.</td>
+  </tr>
+    <tr>
+    <td>Weight in gms</td>
+    <td>It is the weight in grams.</td>
+  </tr>
+    </tr>
+    <tr>
+    <td>Reached on time</td>
+    <td>It is the target variable, where 1 Indicates that the product has NOT reached on time and 0 indicates it has reached on time.</td>
+  </tr>
+
+</table>
+<hr>
+
+```{r}
+options(warn=-1)
+```
+
+
+<h1>Import Libraries</h1>
+```{r}
+
+library(stats)
+library(ggplot2)
+library(MASS)
+library(plyr)
+library(nortest)
+library("dplyr", warn.conflicts = FALSE)
+library(GGally)
+
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<h1>Loading Data</h1>
+
+```{r}
+data <- read.csv("train.csv",sep=",")
+```
+
+<h1>Data Exploration</h1>
+<p>It shows the first 6 observations and 12 variables of the dataset.</p>
+
+```{r}
+head(data)
+```
+
+```{r}
+colnames(data)
+```
+
+We edited the column names and made them more understandable.
+```{r}
+colnames(data) <- c("customer_id", "warehouse_block", 
+                       "mode_of_shipment", "customer_care_calls", "customer_rating","cost_product", "prior_purchase","product_importance","gender","discount_offered","weight_gms","reached_on_time")
+```
+
+```{r}
+colnames(data)
+```
+
+```{r}
+data <- transform(data, reached_on_time = as.factor(mapvalues(reached_on_time, c(0,1), c("notReached","Reached"))))
+data$warehouse_block<- factor(data$warehouse_block)
+data$mode_of_shipment<- factor(data$mode_of_shipment)
+data$gender<- factor(data$gender)
+data$product_importance<- factor(data$product_importance)
+```
+
+```{r}
+summary(data)
+```
+
+```{r}
+summary(data$warehouse_block)
+summary(data$mode_of_shipment)
+summary(data$gender)
+summary(data$cost_product)
+summary(data$customer_care_calls)
+```
+
+<h1>Data visualization</h1>
+```{r}
+ggplot(data=data, aes(x=cost_product)) + 
+  geom_bar(fill="#F2D1D1")+
+  labs(title = "Cost of Product Count BarChart", x="Cost of Product", y="Count")
+```
+
+We see that most of the product prices on the e-commerce site are below or above 250 dollars.
+
+```{r}
+
+totalProduct <- aggregate(weight_gms~mode_of_shipment,data,sum)
+head(totalProduct)
+ggplot(totalProduct, aes(x="", y=weight_gms, fill=mode_of_shipment)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  coord_polar("y", start=0) +
+  theme_void() 
+```
+<br>
+It is seen that the heaviest products in grams are mostly shipped by sea.
+
+```{r}
+ggplot(data, aes(weight_gms, fill=mode_of_shipment)) + 
+  geom_histogram(position="identity", binwidth=20) +
+  facet_grid(mode_of_shipment ~ .) + 
+  ggtitle("Flight,Road and Ship") +
+  xlab("Weight of products in grams") + 
+  ylab("Count")
+
+```
+
+<br>
+As we can see in the histogram graphics above, the heaviest products are sent by ship cargo.
+
+
+```{r}
+totalImportance <- aggregate(weight_gms~product_importance,data,sum)
+head(totalImportance)
+ggplot(totalImportance, aes(x="", y=weight_gms, fill=product_importance)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  coord_polar("y", start=0) +
+  theme_void() 
+```
+
+<br>
+As seen in the pie chart, we cannot make a definite judgment about the total weight of the transported product, even if the transported product is of great importance. The pie slice tells us that the product with the lowest value has a higher total weight.
+
+```{r}
+
+totalDiscount <- aggregate(discount_offered~product_importance,data,sum)
+head(totalDiscount)
+
+ggplot(data=data, aes(x=product_importance, y=discount_offered, fill= product_importance)) +
+  geom_boxplot() + 
+  labs(title = "Box plot of discount offered of products by product importance", x = "Importance Level of Product", y="Discount Offered of Product") +
+  stat_summary(fun=mean, geom="point", shape=4, size=2) +
+  theme(axis.text.x=element_text(angle=-45,hjust=0,vjust=0))
+```
+
+Most of the discounts have been made on low quality products.Discounts of 20 or more on low and medium quality products are outliers, while values of 40 and above on high quality products are outliers.
+
+```{r}
+
+totalPp <- aggregate(prior_purchase~product_importance,data,sum)
+head(totalPp)
+
+ggplot(data=data, aes(x=product_importance, y=prior_purchase, fill= product_importance)) +
+  geom_boxplot() + 
+  labs(title = "Box plot of prior purchase of products by product importance", x = "Importance Level of Product", y="Prior Purchase of Product") +
+  stat_summary(fun=mean, geom="point", shape=4, size=2) +
+  theme(axis.text.x=element_text(angle=-45,hjust=0,vjust=0))
+
+```
+
+Low-importance products were the most preferred among previously purchased products.
+
+```{r}
+line<-filter(summarise(group_by(data,warehouse_block), Count=length(warehouse_block)),Count>100)
+ggplot(line,aes(x=warehouse_block,y=Count))+geom_col(fill='#F2D1D1')+coord_flip()+theme_classic() +labs(title = "Warehouse Name Count BarChart", x="Warehouse Block")
+```
+<br>
+There are 5 different warehouse blocks where the products are stocked. Among these blocks, the F block has the most products, while the other blocks have the same number of products.
+
+
+```{r}
+
+importance<-data.frame(table(data$product_importance,data$gender))
+colnames(importance) <- c("product_importance", "gender","count")
+importance
+
+ggplot(importance, aes(x=gender, y=count, fill=product_importance)) + geom_bar(position="dodge", stat="identity")+
+  labs(title = "Who bought the most important products?")
+
+```
+<br>
+With a slight difference, men bought more from the most important products, while women bought the most from medium and low importance products.
+
+```{r}
+qplot(fill = product_importance, 
+      x = prior_purchase, 
+      data = data, 
+      geom = "density",
+      alpha = I(0.5),
+      adjust = 2
+      )+ labs( x = "Prior-Purchase Rates by Importance of Products")
+```
+
+```{r}
+qplot(fill = warehouse_block, 
+      x = customer_care_calls, 
+      data = data, 
+      geom = "density",
+      alpha = I(0.5),
+      adjust = 1.2
+      )+ labs( x = "Ratio of customer service ratings by each warehouse")
+
+```
+
+
+<h1>Confidence Intervals</h1>
+<h2> 1)Confidence interval that evaluates how many previous purchases of a product that reaches the customer or does not reach the customer.</h2>
+
+```{r}
+reached <- subset(data, reached_on_time=="Reached")
+notReached <- subset(data, reached_on_time=="notReached")
+
+```
+
+```{r}
+reachedConf <- t.test(reached$prior_purchase)$conf.int
+reachedConf
+```
+
+The above output shows that the average of prior purchased products for reached products is between 3.46138 and 3.53481 with 95% confidence.
+
+```{r}
+notReachedConf <- t.test(notReached$prior_purchase)$conf.int
+notReachedConf
+```
+
+The above output shows that the average of prior purchased products for not reached products is between 3.625522 and 3.715326 with 95% confidence.
+
+```{r}
+reach.purchase <- data.frame(reached_on_time="Reached",
+                                mean=mean(reached$prior_purchase), 
+                                lower=reachedConf[1], 
+                                upper=reachedConf[2])
+
+reach.purchase <- rbind(reach.purchase , data.frame(reached_on_time="notReached",
+                                mean=mean(notReached$prior_purchase), 
+                                lower=notReachedConf[1], 
+                                upper=notReachedConf[2]))
+
+
+ggplot(reach.purchase, aes(x=reached_on_time, y=mean, fill=reached_on_time)) +
+  geom_bar(position="dodge", stat="identity", width = 0.3) +
+  geom_errorbar(aes(ymin=lower, ymax=upper),
+                width=.1, 
+                position=position_dodge(0.1))
+
+```
+
+
+<h2> 2)Confidence interval that evaluates the total price of products purchased by the customer's gender.</h2>
+
+```{r}
+female <- subset(data, gender=="F")
+male <- subset(data, gender=="M")
+```
+
+```{r}
+femaleConf <- t.test(female$cost_product)$conf.int
+femaleConf
+```
+
+The above output shows that the true average product price for women is between 207.9892 and 210.5208 with 95% confidence.
+
+```{r}
+maleConf<- t.test(male$cost_product)$conf.int
+maleConf
+```
+
+The above output shows that the true average product price for women is between 209.8794 and 212.4293 with 95% confidence.
+
+```{r}
+gender.cost_product <- data.frame(gender="F",
+                                mean=mean(female$cost_product), 
+                                lower=femaleConf[1], 
+                                upper=femaleConf[2])
+
+gender.cost_product<- rbind(gender.cost_product , data.frame(gender="M",
+                                mean=mean(male$cost_product), 
+                                lower=maleConf[1], 
+                                upper=maleConf[2]))
+
+ggplot(gender.cost_product, aes(x=gender, y=mean, fill=gender)) +
+  geom_bar(position="dodge", stat="identity", width = 0.3) +
+  geom_errorbar(aes(ymin=lower, ymax=upper),
+                width=.1,
+                position=position_dodge(0.1))
+```
+
+<h2> 3)Confidence interval that evaluates customer service search by repository block.</h2>
+
+```{r}
+a <- subset(data, warehouse_block=="A")
+b <- subset(data, warehouse_block=="B")
+c <- subset(data, warehouse_block=="C")
+d <- subset(data, warehouse_block=="D")
+f <- subset(data, warehouse_block=="F")
+```
+
+```{r}
+aConf <- t.test(a$customer_care_calls)$conf.int
+aConf
+```
+
+
+The above output shows that the actual average customer service calls for block A are between 3.986027 and 4.090351 with 95% confidence.
+
+
+```{r}
+bConf <- t.test(b$customer_care_calls)$conf.int
+bConf
+```
+
+
+The above output shows that the actual average customer service calls for block A are between 3.968699 and 4.071672 with 95% confidence.
+
+```{r}
+cConf <- t.test(c$customer_care_calls)$conf.int
+cConf
+```
+
+
+The above output shows that the actual average customer service calls for block A are between 4.012453 and 4.117389 with 95% confidence.
+
+```{r}
+dConf <- t.test(d$customer_care_calls)$conf.int
+dConf
+```
+
+
+The above output shows that the actual average customer service calls for block A are between  4.000114 and 4.106756 with 95% confidence.
+
+```{r}
+fConf <- t.test(f$customer_care_calls)$conf.int
+fConf
+```
+
+
+The above output shows that the actual average customer service calls for block A are between 4.038156 and 4.111872 with 95% confidence.
+
+
+```{r}
+block <- data.frame(warehouse_block="A",
+                                mean=mean(female$customer_care_calls), 
+                                lower=aConf[1], 
+                                upper=aConf[2])
+
+block<- rbind(block , data.frame(warehouse_block="B",
+                                mean=mean(male$customer_care_calls), 
+                                lower=bConf[1], 
+                                upper=bConf[2]))
+block<- rbind(block , data.frame(warehouse_block="C",
+                                mean=mean(male$customer_care_calls), 
+                                lower=cConf[1], 
+                                upper=cConf[2]))
+block<- rbind(block , data.frame(warehouse_block="D",
+                                mean=mean(male$customer_care_calls), 
+                                lower=dConf[1], 
+                                upper=dConf[2]))
+block<- rbind(block , data.frame(warehouse_block="F",
+                                mean=mean(male$customer_care_calls), 
+                                lower=fConf[1], 
+                                upper=fConf[2]))
+
+ggplot(block, aes(x=warehouse_block, y=mean, fill=warehouse_block)) +
+  geom_bar(position="dodge", stat="identity", width = 0.6) +
+  geom_errorbar(aes(ymin=lower, ymax=upper),
+                width=.3,
+                position=position_dodge(0.9))
+```
+
+<h2> 4)Confidence interval that evaluates the total weight of the goods transported according to the type of shipping of the product.</h2>
+
+```{r}
+flight<- subset(data, mode_of_shipment=="Flight")
+road <- subset(data, mode_of_shipment=="Road")
+ship <- subset(data, mode_of_shipment=="Ship")
+```
+
+```{r}
+flyConf <- t.test(flight$weight_gms)$conf.int
+flyConf
+```
+
+The above output shows that the actual average product weights for flight shipping are between 3555.008 and 3703.748 with 95% confidence.
+
+```{r}
+roadConf <- t.test(road$weight_gms)$conf.int
+roadConf
+```
+
+The above output shows that the actual average product weights for road shipping are between 3573.300 and 3725.801 with 95% confidence.
+
+```{r}
+shipConf <- t.test(ship$weight_gms)$conf.int
+shipConf
+```
+
+
+The above output shows that the actual average product weights for ship shipping are between 3594.121 and 3668.794 with 95% confidence.
+
+
+```{r}
+shipping <- data.frame(mode_of_shipment="Flight",
+                                mean=mean(flight$weight_gms), 
+                                lower=flyConf[1], 
+                                upper=flyConf[2])
+
+shipping<- rbind(shipping , data.frame(mode_of_shipment="Road",
+                                mean=mean(road$weight_gms), 
+                                lower=roadConf[1], 
+                                upper=roadConf[2]))
+
+shipping<- rbind(shipping , data.frame(mode_of_shipment="Ship",
+                                mean=mean(ship$weight_gms), 
+                                lower=shipConf[1], 
+                                upper=shipConf[2]))
+
+ggplot(shipping, aes(x=mode_of_shipment, y=mean, fill=mode_of_shipment)) +
+  geom_bar(position="dodge", stat="identity", width = 0.6) +
+  geom_errorbar(aes(ymin=lower, ymax=upper),
+                width=.3,
+                position=position_dodge(0.9))
+```
+
+
+
+
+<h1>Transformation</h1>
+```{r}
+data$logCostProduct=log10(data$cost_product)
+hist(data$cost_product, col='steelblue', main='Original')
+
+hist(data$logCostProduct, col='coral2', main='Log Transformed')
+ad.test(data$cost_product)
+ad.test(data$logCostProduct)
+
+```
+
+ We used the log transformation to normalize cost of products data.We tried to obtain a more normal distribution. The result log graph is not good but understandable.
+
+<h1> Hyphothesis Testing </h1>
+<h2> One Sample Test</h2>
+
+<h3>1)One sample hypothesis for calls average customer care  for each warehouse block is block A and tests it with a 95% confidence interval.<br><br>
+     H0: mu = 4 <br>
+     H1: mu!= 4</h3>
+
+
+
+```{r}
+t.test(a$customer_care_calls, 
+       alternative = "less", 
+       mu=4, 
+       conf.level = 0.95)
+
+```
+
+
+As p-value > 0.05, the null hypothesis is not rejected and the confidence interval is between -infinity and 4.081 with 95% confident.Therefore, the data is normally distributed.
+
+
+In this QQ plot, we can see that the data is normally distributed.Values can pass linearly on the line.
+
+```{r}
+qqnorm(a$customer_care_calls, ylab = "Sample Quantiles")
+qqline(a$customer_care_calls,)
+qqline(a$customer_care_calls, col = "blue")
+```
+
+<h3>2)One sample hypothesis, which shows how much of that product was purchased on average, for the products that did or did not arrive, is the product that has reached and tests it with a confidence interval of 95%.<br><br>
+     H0: mu = 5 <br>
+     H1: mu!= 5</h3>
+    
+
+
+```{r}
+t.test(reached$prior_purchase, 
+       alternative = "less", 
+       mu=5, 
+       conf.level = 0.95)
+
+```
+As the p-value < 0.05, the null hypothesis is rejected, so data is not normally distributed.
+
+
+In this QQ plot, the values are more spread out of the line. Therefore, it does not show a normal distribution.
+```{r}
+qqnorm(reached$prior_purchase, ylab = "Sample Quantiles")
+qqline(reached$prior_purchase,)
+qqline(reached$prior_purchase, col = "blue")
+```
+
+<h3>3)One sample hypothesis of how weight the average product is for the way the product is shipping is the flight mode and tests it with a 95% confidence interval.<br><br>
+     H0: mu = 3600 <br>
+     H1: mu!= 3600</h3>
+
+     
+```{r}
+t.test(flight$weight_gms, 
+       alternative = "two.sided", 
+       mu=3600, 
+       conf.level = 0.95)
+
+```
+
+As the p-value < 0.05, the null hypothesis is rejected, so data is not normally distributed.In other words, the average of the total weights in the cargo in flight mode is different from 3600 grams with a confidence level of 0.05.
+
+In this QQ plot, the values are more spread out of the line. Therefore, it does not show a normal distribution.
+
+```{r}
+qqnorm(flight$weight_gms, ylab = "Sample Quantiles")
+qqline(flight$weight_gms,)
+qqline(flight$weight_gms, col = "blue")
+```
+
+
+
+<h2>Welch t-test</h2>
+We used the Welch t-test in the 2 tests below.We used the welch t test in the 2 tests above.We used this test to compare the means between two independent groups and to examine whether there was a semantic relationship between these groups.
+<h3>1)Is there a significant relationship between the gender of the customer and the average product costs?<br>
+     H0: mu = 210 <br>
+     H1: mu!= 210</h3>
+</h3>
+
+```{r}
+t.test(female$cost_product,male$cost_product,
+       conf.level = 0.95,
+       var.eq=F,
+       paired=F)
+
+boxplot(female$cost_product,male$cost_product,names=c("Female","Male"),col=c("pink","lightblue"))
+```
+
+Since this p-value < 0.05, we reject the null hypothesis and conclude that there is a statistically significant difference in the total price of products purchased between the male and female group.
+
+The 95% confidence interval for the difference in the total price of products purchased between the two groups is 
+[-3.695800, -0.102955].
+
+The average price of the products purchased by the female group is 209.2550.
+
+The average price of the products purchased by the male group is 211.1544.
+
+Although the values are close to each other, as can be seen in the chart, the average price of the products bought by men is higher than the products bought by women.
+
+
+<h3>2)Is there a significant relationship between the quality of the product and the weight of the product?<br>
+     H0: mu = 3700 <br>
+     H1: mu!= 3700</h3>
+
+
+```{r}
+low <- subset(data, product_importance=="low")
+medium <- subset(data, product_importance=="medium")
+high <- subset(data, product_importance=="high")
+
+t.test(low$weight_gms,high$weight_gms,
+       conf.level = 0.95,
+       var.eq=F,
+       paired=F)
+
+
+boxplot(low$weight_gms,high$weight_gms, names=c("Low Importance","High Importance"),col=c("pink","lightblue"))
+```
+
+Since this p value is < 0.05, the null hypothesis is rejected and it is concluded that there is a significant difference between the importance of the products and the weights of the products sold.
+
+The 95% confidence interval for the average weights of items sold between the two groups is [ -612.4705 -403.6549].
+
+The average weight of low quality products shipped is  3497.489.
+
+The average weight of high quality products shipped is  4005.552 .
+
+As can be seen from the box plot, it is the products of high importance that have the highest average product weight.
+
+
+<h2>Paired t-test</h2>
+<h3>1)Is there a semantic relationship between the price of the product sold and the discount offered to the product?<br>
+     H0: mu = 196<br>
+     H1: mu!= 196</h3>
+
+<h4>Assumption Check:</h4>
+
+Normality assumption was checked using the Anderson-Darling test.
+
+
+```{r}
+
+ad.test(data$cost_product)
+ad.test(data$discount_offered)
+
+```
+
+
+Since p<0.05, the H0 hypothesis is rejected.
+
+
+```{r}
+
+t.test(data$cost_product,data$discount_offered,mu = 196,alternative="two.sided",conf.level = 0.95,paired = T)
+
+```
+
+The test statistic t is 390.93.
+
+The p-value for this test statistic with 10998 degrees of freedom (df) is 2.2e-16.
+
+The 95% confidence interval for the mean difference is  (195.8367 197.8105).
+
+The average difference between the price of the product and the discount on the product is 196.8236.
+
+Since this p value is < 0.05, the null hypothesis is rejected and it is concluded that there is a significant difference between the price of the products and the discount offered to the products.
+
+
+<h3>2)Is there a semantic relationship between the weight of the products and the price of the products?<br>
+     H0: mu = 3400<br>
+     H1: mu!= 3400</h3>
+
+<h4>Assumption Check:</h4>
+
+Normality assumption was checked using the Anderson-Darling test.
+
+
+```{r}
+
+ad.test(data$weight_gms)
+ad.test(data$cost_produc)
+
+```
+
+Since p<0.05, the H0 hypothesis is rejected.
+
+```{r}
+
+t.test(data$weight_gms,data$cost_product,alternative="two.sided",mu=3400,conf.level = 0.95,paired = T)
+
+```
+
+The test statistic t is 218.62.
+
+The p-value for this test statistic with 10998 degrees of freedom (df) is 2.2e-16.
+
+The 95% confidence interval for the mean difference is  (3393.122 3454.518).
+
+The average difference between the price of the product and the weight on the product is 3423.82.
+
+Since this p value is < 0.05, the null hypothesis is rejected and it is concluded that there is a significant difference between the price of the products and the weights of the products.
+
+
+<h2>Fisher’s exact test</h2>
+
+
+<h3>Examining the reached on time of the purchased products according to the gender of the customer.<br>
+H0:The gender and reached_on_time variables are independent<br>
+HA:The gender and reached_on_time variables are dependent</h3>
+
+
+
+```{r}
+fishers<- with(data, table(gender, reached_on_time))
+fishers
+```
+
+```{r}
+test <- fisher.test(fishers)
+test
+```
+```{r}
+attributes(test)
+```
+
+Products reaching and not reaching women are 1.06 times more than products reaching or not reaching men.
+Odds ratio = 1, so products that reach and don't reach are equally likely for men and women.
+
+
+<h2>Annova Test </h2>
+
+<h3>1)Is there a significant difference between the average of customer ratings for different mode of shipment?<br>
+  H0: μ1=μ2=μ3<br>
+  H1: At least one is different</h3>
+
+```{r}
+anovaa <- data[, c(3, 5)]
+names(anovaa) <- c("mode_of_shipment", "customer_rating")
+head(anovaa)
+```
+```{r}
+levels(anovaa$mode_of_shipment)
+```
+```{r}
+group_by(anovaa, mode_of_shipment) %>%
+  summarise(
+    count = n(),
+    mean = mean(customer_rating, na.rm = TRUE)
+  )
+```
+
+```{r}
+summary(anovaa)
+```
+
+<h4>Assumption Check:</h4>
+
+Normality assumption was checked using the Anderson-Darling test.
+
+```{r}
+ad.test(anovaa[anovaa$mode_of_shipment=="Flight", 2])
+```
+```{r}
+ad.test(anovaa[anovaa$mode_of_shipment=="Road", 2])
+```
+```{r}
+ad.test(anovaa[anovaa$mode_of_shipment=="Ship", 2])
+```
+<h4>Variance homogeneity</h4>
+```{r}
+bartlett.test(customer_rating~mode_of_shipment, data = anovaa)
+```
+
+p-value > 0.05 based on barlett-test results. As a result, the null hypothesis is accepted, and the variances are all the same.
+
+
+<h4>Analysis of variance</h4>
+
+```{r}
+variance<-aov(customer_rating~mode_of_shipment, data = anovaa)
+summary(variance)
+```
+Since the p value is > 0.05, it can be concluded that there are no significant differences in the customer rating depending on the shipment mode.
+
+<h2>Visualization</h2>
+
+```{r}
+ggplot(data=anovaa, aes(x=mode_of_shipment, y=customer_rating, fill= mode_of_shipment)) +
+  geom_boxplot() + 
+  labs(title = "Shipment Mode based on type Boxplot", x = "Shipment Mode", y="Customer Rating") +
+  stat_summary(fun=mean, geom="point", shape=4, size=2) +
+  theme(axis.text.x=element_text(angle=-45,hjust=0,vjust=0))
+```
+<br>
+X, Factor: Shipment Mode
+Y, Response: Customer Rating
+
+
+<h3>2)Is there a significant difference between the average of weight for different warehouse?<br>
+  H0: μ1=μ2=μ3=μ4=μ5<br>
+  H1: At least one is different</h3>
+
+```{r}
+anovaaa <- data[, c(2, 11)]
+names(anovaaa) <- c("warehouse", "weight")
+head(anovaaa)
+```
+```{r}
+levels(anovaaa$warehouse)
+```
+
+```{r}
+group_by(anovaaa, warehouse) %>%
+  summarise(
+    count = n(),
+    mean = mean(weight, na.rm = TRUE)
+  )
+```
+
+
+<h4>Assumption Check:</h4>
+
+Normality assumption was checked using the Anderson-Darling test.
+
+```{r}
+ad.test(anovaaa[anovaaa$warehouse=="A", 2])
+```
+```{r}
+ad.test(anovaaa[anovaaa$warehouse=="B", 2])
+```
+```{r}
+ad.test(anovaaa[anovaaa$warehouse=="C", 2])
+```
+```{r}
+ad.test(anovaaa[anovaaa$warehouse=="D", 2])
+```
+```{r}
+ad.test(anovaaa[anovaaa$warehouse=="F", 2])
+```
+
+<h4>Variance homogeneity</h4>
+```{r}
+bartlett.test(weight~warehouse, data = anovaaa)
+```
+p-value > 0.05 based on barlett-test results. As a result, the null hypothesis is accepted, and the variances are all the same.
+
+
+<h4>Analysis of variance</h4>
+
+```{r}
+variancee<-aov(weight~warehouse, data = anovaaa)
+summary(variancee)
+```
+Since the p value is > 0.05, it can be concluded that there are no significant differences in the weight depending on the warehouse.
+
+
+
+<h2>Visualization</h2>
+
+```{r}
+ggplot(data=anovaaa, aes(x=warehouse, y=weight, fill= warehouse)) +
+  geom_boxplot() + 
+  labs(title = "warehouse based on type Boxplot", x = "Warehouse", y="Weight") +
+  stat_summary(fun=mean, geom="point", shape=4, size=2) +
+  theme(axis.text.x=element_text(angle=-45,hjust=0,vjust=0))
+```
+<br>
+X, Factor: Warehouse
+Y, Response: Weight
+
+<h2>Tukey Test</h2>
+
+```{r}
+TukeyHSD(variance, conf.level=.95)
+```
+```{r}
+plot(TukeyHSD(variance, conf.level=.95))
+```
+
+As a result, It is seen that there is no statistically significant difference in the mean loss between all groups. This is consistent with the fact that all p-values from our hypothesis tests were greater than 0.05.
+
+```{r}
+TukeyHSD(variancee, conf.level=.95)
+```
+
+```{r}
+plot(TukeyHSD(variancee, conf.level=.95))
+```
+
+As a result, It is seen that there is no statistically significant difference in the mean loss between all groups. This is consistent with the fact that all p-values from our hypothesis tests were greater than 0.05.
+
+
+
+<h1>Multiple Linear Regression</h1>
+<h2>Can a meaningful relationship be established between the price of the product and the weight of the product in grams, the discount offered to the product, and the importance of the product?<br>
+
+  H0= β1=β2=β3... = 0 <br>
+  H1= β != 0 for least one</h2>
+
+<p>In our model, product price is response variable, product weight, discount offered to the product and the importance of the product are explanatory variables.
+</p>
+
+```{r}
+model1 <- lm(cost_product~weight_gms+discount_offered+product_importance,data=data)
+summary(model1)
+
+```
+
+In order to examine the significance of the model we established, we evaluated the p value by looking at the F statistic from the results.
+
+Since the p value< 0.05, this model turns out to be statistically significant.That is, at least one explanatory variable in our model is associated with the response variable.
+
+
+```{r}
+summary(model1)$coef
+
+46.62/mean(data$cost)
+
+
+```
+
+The p-value of the product weight, the discount offered, and the low-importance products is less than 0.05. Therefore, there is a significant relationship between them and our response variable, the price of the products.However, since the p value is greater than 0.05 for medium-important products, there is no significant relationship between the response variable, that is, the product price.
+
+The price of average wages deviates from the estimated value by approximately 46.63.The error rate of the model is about 22%.
+
+
+```{r}
+plot(model1)
+```
+
+```{r}
+model.final<-step(model1)
+summary(model.final)
+```
+
+<h3>Prediction</h3>
+
+Is there a meaningful relationship between the price of the product and whether the product reaches the destination on time and how much is received from the ordered product beforehand?<br>
+We evaluated this using the best model of our original model.<br>
+We kept our response variable the same and changed our explanatory variables.
+
+```{r}
+model.final<-lm(cost_product~reached_on_time+prior_purchase,data=data)
+summary(model.final)
+
+```
+
+In order to examine the significance of the model we established, we evaluated the p value by looking at the F statistic from the results.
+
+Since the p value< 0.05, this model turns out to be statistically significant.That is, at least one explanatory variable in our model is associated with the response variable.
+
+
+
+
+
